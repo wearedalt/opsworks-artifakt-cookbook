@@ -270,7 +270,7 @@ define :artifakt_magento2_deploy  do
           title 'Waiting for database and configuration to be up to date'
         end
         run_command do
-          command 'echo "All modules are up to date.""'
+          command 'echo "All modules are up to date."'
           user node[:app_user]
           group node[:app_group]
           environment node[:deploy][node[:app_name]][:environment_variables]
