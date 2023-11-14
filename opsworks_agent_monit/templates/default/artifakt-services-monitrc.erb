@@ -1,0 +1,11 @@
+check process supervisor with pidfile /var/run/supervisord.pid
+   group supervisor
+   start program = "/etc/init.d/supervisord start"
+   stop  program = "/etc/init.d/supervisord stop"
+   if does not exist then restart
+
+check process mysqld with pidfile /var/run/mysqld/mysqld.pid
+   group mysqld
+   start program = "/etc/init.d/mysqld start"
+   stop  program = "/etc/init.d/mysqld stop"
+   if does not exist then restart

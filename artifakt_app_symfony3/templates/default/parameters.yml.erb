@@ -1,0 +1,15 @@
+parameters:
+    database_host: <%= @dbhost%>
+    database_port: 3306
+    database_name: <%= @dbname%>
+    database_user: <%= @dbuser%>
+    database_password: <%= @dbpassword%>
+    <% if @smtphost %>
+    mailer_transport: smtp
+    <% else %> 
+    mailer_transport: sendmail
+    <% end %>
+    mailer_host: <%= @smtphost%>
+    mailer_user: <%= @smtplogin%>
+    mailer_password: <%= @smtppassword%>
+    secret: <%= @appsecret%>

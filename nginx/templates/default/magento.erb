@@ -1,0 +1,87 @@
+server {
+
+  server_name  <%= node[:url][:elb].downcase %> ;
+
+  access_log  /var/log/nginx/access.log;
+  error_log   /var/log/nginx/error.log;
+
+  root    <%= node[:deploy][:magento][:absolute_code_root] %>;
+  index   index.php index.html;
+
+
+  ## Forbid any file execution from media folder
+  location ~* /media/.*\.php$ {
+    return 503;
+  }
+
+  ## Forbid any file execution from var folder
+  location ~* /var/.*\.php$ {
+    return 503;
+  }
+
+  ## Block bad bots
+  if ($http_user_agent ~* (HTTrack|HTMLParser|libcurl|discobot|Exabot|Casper|kmccrew|plaNETWORK|RPT-HTTPClient)) {
+    return 444;
+  }
+
+  ## Block certain Referers (case insensitive)
+  if ($http_referer ~* (sex|vigra|viagra) ) {
+    return 444;
+  }
+
+  ## Deny dot files:
+  location ~ /\. {
+    deny all;
+  }
+
+  ## Favicon Not Found
+  location = /favicon.ico {
+    access_log off;
+    log_not_found off;
+  }
+
+  ## Robots.txt Not Found
+  location = /robots.txt { 
+    access_log off; 
+    log_not_found off; 
+  }
+
+  location / {
+    try_files $uri $uri/ /index.php?$args; 
+  }
+
+  # set a nice expire for assets
+  location ~* "^.+\.(jpe?g|gif|css|png|js|ico|pdf|zip|tar|t?gz|mp3|wav|swf)$" {
+    expires    max;
+    add_header Cache-Control public;
+  }
+  
+  # the downloader has its own index.php that needs to be used
+  location ~* ^(/downloader|/js|/404|/report)(.*) {
+    include /etc/nginx/fastcgi.conf;
+    fastcgi_param  SCRIPT_FILENAME  $document_root$1/index.php$1;
+    fastcgi_read_timeout 600;
+    fastcgi_pass unix:/var/run/php-fpm-www.sock;
+  }
+ 
+  location ~* \.php {
+    fastcgi_read_timeout 600;
+    include /etc/nginx/fastcgi.conf;
+    fastcgi_pass unix:/var/run/php-fpm-www.sock;
+  }
+  
+  ### NginX Status
+  location /nginx_status {
+  stub_status on;
+    access_log   off; 
+  }
+
+  ### FPM Status
+  location ~ ^/(status|ping)$ {
+    fastcgi_pass unix:/var/run/php-fpm-www.sock;
+    access_log      off;
+  }
+
+
+
+}

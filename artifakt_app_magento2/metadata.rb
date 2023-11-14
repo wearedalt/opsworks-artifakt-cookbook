@@ -1,0 +1,5 @@
+name        "artifakt_app_magento2"
+description "Artifakt Magento2 Application Recipes"
+maintainer  "Artifakt"
+license     "Apache 2.0"
+version     "1.0.0"

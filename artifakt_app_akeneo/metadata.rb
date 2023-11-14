@@ -1,0 +1,5 @@
+name        "artifakt_app_akeneo"
+description "Artifakt Akeneo Application Recipes"
+maintainer  "Artifakt"
+license     "Apache 2.0"
+version     "1.0.0"

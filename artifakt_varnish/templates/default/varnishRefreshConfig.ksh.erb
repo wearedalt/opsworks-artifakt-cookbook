@@ -1,0 +1,117 @@
+#!/bin/sh
+
+function writeLog()
+{
+    logtime=$(date +'%Y-%m-%d %H:%M')
+    echo "${logtime} $1" >> running.log
+}
+
+dir_varnish="/srv/www/varnish"
+dir_varnish_conf=$dir_varnish/conf
+running_log=$dir_varnish/running.log
+file_doneIp=$dir_varnish_conf/doneIp.txt
+file_lock=$dir_varnish/varnish.lock
+
+cd $dir_varnish
+startTime=$(date +'%m/%d/%Y %H:%M')
+
+if [[ -e "varnish.lock" ]]; then
+    echo "${startTime} Lock file exists, stop" >> running.log
+else
+    tmp_varnish_backends=""
+    tmp_varnish_vclinit=""
+    tmp_varnish_aclpurge=""
+
+    file_varnish_backends=$dir_varnish_conf/backends.vcl
+    file_varnish_vclinit=$dir_varnish_conf/vcl_init.vcl
+    file_varnish_aclpurge=$dir_varnish_conf/acl_purge.vcl
+
+    if [[ ! -e "$dir_varnish_conf/custom_backends.vcl" ]]; then touch $dir_varnish_conf/custom_backends.vcl; fi
+    if [[ ! -e "$dir_varnish_conf/custom_start_rules.vcl" ]]; then touch $dir_varnish_conf/custom_start_rules.vcl; fi
+    if [[ ! -e "$dir_varnish_conf/custom_vcl_recv.vcl" ]]; then touch $dir_varnish_conf/custom_vcl_recv.vcl; fi
+    if [[ ! -e "$dir_varnish_conf/custom_vcl_hash.vcl" ]]; then touch $dir_varnish_conf/custom_vcl_hash.vcl; fi
+    if [[ ! -e "$dir_varnish_conf/custom_process_graphql_headers.vcl" ]]; then touch $dir_varnish_conf/custom_process_graphql_headers.vcl; fi
+    if [[ ! -e "$dir_varnish_conf/custom_vcl_backend_response.vcl" ]]; then touch $dir_varnish_conf/custom_vcl_backend_response.vcl; fi
+    if [[ ! -e "$dir_varnish_conf/custom_vcl_deliver.vcl" ]]; then touch $dir_varnish_conf/custom_vcl_deliver.vcl; fi
+    if [[ ! -e "$dir_varnish_conf/custom_vcl_hit.vcl" ]]; then touch $dir_varnish_conf/custom_vcl_hit.vcl; fi
+    if [[ ! -e "$dir_varnish_conf/custom_end_rules.vcl" ]]; then touch $dir_varnish_conf/custom_end_rules.vcl; fi
+
+    writeLog "No lock file, starting"
+
+    echo 'Lock' > $file_lock
+    ips=$(opsworks-agent-cli stack_state|grep private_ip|grep -oE '((1?[0-9][0-9]?|2[0-4][0-9]|25[0-5])\.){3}(1?[0-9][0-9]?|2[0-4][0-9]|25[0-5])')
+    cd /srv/www/varnish/
+
+    rm $file_doneIp
+
+    touch $file_doneIp
+
+    tmp_varnish_backends="
+import directors;
+backend web_server {
+    .host = \"127.0.0.1\";
+    .port = \"8080\";
+    .first_byte_timeout = 600s;
+}"
+    tmp_varnish_vclinit="
+sub vcl_init {
+    new varnish_nodes = directors.shard();"
+    tmp_varnish_aclpurge="
+acl purge {"
+
+    lineNumber=0
+    httpCacheHost=""
+    while IFS= read -r line; do
+        continue=1
+        while IFS= read -r done
+        do
+            if [ "$line" = "$done" ]; then continue=0; fi
+            writeLog "Compare: $line and $done"
+        done <$file_doneIp
+
+        if [[ $continue -eq 1 ]]; then
+            let lineNumber=$lineNumber+1
+            tmp_varnish_backends="$tmp_varnish_backends
+backend server$lineNumber {
+    .host = \"$line\";
+    .port = \"80\";
+    .first_byte_timeout = 600s;
+    .probe = {
+    .request =
+        \"HEAD / HTTP/1.1\"
+        \"X-Is-Probe: 1\";
+    }
+}"
+            tmp_varnish_vclinit="$tmp_varnish_vclinit
+    varnish_nodes.add_backend(server$lineNumber);"
+            tmp_varnish_aclpurge="$tmp_varnish_aclpurge
+    \"$line\";"
+            echo -e $line >> $file_doneIp
+            if [ "$httpCacheHost" = "" ]; then httpCacheHost="$line:80"; else httpCacheHost="$httpCacheHost,$line:80"; fi
+        fi
+    done <<< "$ips"
+
+    tmp_varnish_vclinit="$tmp_varnish_vclinit
+    varnish_nodes.reconfigure();
+
+    new front_nodes = directors.round_robin();
+    front_nodes.add_backend(web_server);
+}
+"
+    tmp_varnish_aclpurge="$tmp_varnish_aclpurge
+}"
+
+    if [[ $lineNumber -gt 0 ]]; then
+        printf "%s\n" "$tmp_varnish_backends" > $file_varnish_backends
+        printf "%s\n" "$tmp_varnish_vclinit" > $file_varnish_vclinit
+        printf "%s\n" "$tmp_varnish_aclpurge" > $file_varnish_aclpurge
+
+        if [ "$(docker ps -aq -f name=varnish -f status=running)" ]; then
+            sudo docker exec varnish varnishreload
+        fi
+    fi
+
+    cd $dir_varnish
+    rm $file_lock
+    writeLog "End of script"
+fi

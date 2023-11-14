@@ -1,0 +1,136 @@
+FROM php:<%= node['app']['language_long'] %>-fpm-buster
+ARG GROUP_ID=501
+ARG USER_ID=48
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get --allow-releaseinfo-change update && apt-get install -y \
+  cron \
+  git \
+  gzip \
+  libbz2-dev \
+  libfreetype6-dev \
+  libicu-dev \
+  libjpeg62-turbo-dev \
+  libmcrypt-dev \
+  libpng-dev \
+  libsodium-dev \
+  libssh2-1-dev \
+  libxslt1-dev \
+  libzip-dev \
+  lsof \
+  default-mysql-client \
+  vim \
+  zip \
+  libtidy-dev \
+  jpegoptim \
+  pngquant \
+  locales \
+  locales-all
+
+<% if node[:php_fpm][:install_sendmail] == 'true' -%>
+RUN apt-get --allow-releaseinfo-change update && apt-get install -y \
+  sendmail
+<% end %>
+
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg
+
+RUN docker-php-ext-install \
+  bcmath \
+  bz2 \
+  calendar \
+  exif \
+  gd \
+  gettext \
+  intl
+
+RUN apt-get install -y libonig-dev
+
+RUN docker-php-ext-install \
+  mysqli \
+  opcache \
+  pcntl \
+  pdo_mysql \
+  soap \
+  sockets \
+  sodium \
+  sysvmsg \
+  sysvsem \
+  sysvshm \
+  xsl \
+  zip \
+  tidy
+
+RUN apt update && apt install -y libc-client-dev libkrb5-dev && rm -r /var/lib/apt/
+RUN docker-php-ext-configure imap --with-kerberos --with-imap-ssl && docker-php-ext-install imap
+
+RUN pecl channel-update pecl.php.net \
+  && pecl install apcu
+
+RUN docker-php-ext-enable apcu
+
+RUN curl -sS https://getcomposer.org/installer | \
+  php -- --version=<%= node['composer']['version'] %> --install-dir=/usr/local/bin --filename=composer
+
+RUN groupadd -g $GROUP_ID opsworks \
+ && useradd -g $GROUP_ID -u $USER_ID -d /var/www -s /bin/bash apache
+RUN export COMPOSER_ALLOW_SUPERUSER=1
+
+RUN mkdir -p /var/log/php-fpm \
+ && touch /var/log/php-fpm/access.log \
+ && touch /var/log/php-fpm/error.log \
+ && chown apache:opsworks -R /var/log/php-fpm \
+ && mkdir /var/www/.composer \
+ && chown apache:opsworks -R /var/www/.composer
+
+RUN apt-get --allow-releaseinfo-change update && apt-get install -y libmagickwand-dev --no-install-recommends && rm -rf /var/lib/apt/lists/*
+RUN printf "\n" | pecl install imagick
+RUN docker-php-ext-enable imagick
+
+<% if node[:app][:newrelic][:installed] == 'true' -%>
+RUN \
+  curl -L https://download.newrelic.com/php_agent/release/newrelic-php5-<%= node['app']['newrelic']['agent_version'] %>-linux.tar.gz | tar -C /tmp -zx && \
+  export NR_INSTALL_USE_CP_NOT_LN=1 && \
+  export NR_INSTALL_SILENT=1 && \
+  /tmp/newrelic-php5-*/newrelic-install install && \
+  rm -rf /tmp/newrelic-php5-* /tmp/nrinstall* && \
+  sed -i \
+      -e 's/"REPLACE_WITH_REAL_KEY"/"<%= node['app']['newrelic']['key'] %>"/' \
+      -e 's/newrelic.appname = "PHP Application"/newrelic.appname = "<%= node['app']['newrelic']['app_name'] %>"/' \
+      -e 's/;newrelic.daemon.app_connect_timeout =.*/newrelic.daemon.app_connect_timeout=15s/' \
+      -e 's/;newrelic.daemon.start_timeout =.*/newrelic.daemon.start_timeout=5s/' \
+      /usr/local/etc/php/conf.d/newrelic.ini
+
+RUN chown apache:opsworks /var/log/newrelic
+<% end %>
+
+<% if node[:quanta][:token] -%>
+RUN echo 'deb http://apt.quanta.io/debian buster main' > /etc/apt/sources.list.d/quanta.list
+RUN curl https://apt.quanta.io/quanta-repo-key.gpg -o - | apt-key add -
+
+RUN apt-get --allow-releaseinfo-change update && apt-get install -y quanta-agent
+RUN sed -i -e "s/__YOUR_HOSTID__/$(cat /proc/sys/kernel/random/uuid)/g" /etc/quanta/agent.yml
+RUN sed -i -e "s/__YOUR_QUANTA_TOKEN__/<%= node['quanta']['token'] %>/g" /etc/quanta/agent.yml
+<% end %>
+
+<% if node[:app][:sync_ssh_keys] == 'true' -%>
+RUN mkdir -p /var/www/.ssh
+COPY ./.ssh/ /var/www/.ssh/
+RUN echo "StrictHostKeyChecking=no" >> /var/www/.ssh/config
+RUN chown -R apache:opsworks /var/www/.ssh
+RUN chmod -f 400 /var/www/.ssh/id_* || :
+<% end %>
+
+RUN curl -fsSL https://deb.nodesource.com/setup_14.x | bash - && apt-get install -y nodejs
+RUN mkdir -p /var/www/.nvm
+RUN mkdir -p /var/www/.npm
+RUN mkdir -p /var/www/.config
+RUN mkdir -p /var/www/.cache
+RUN chown -R apache:opsworks /var/www/.nvm
+RUN chown -R apache:opsworks /var/www/.npm
+RUN chown -R apache:opsworks /var/www/.config
+RUN chown -R apache:opsworks /var/www/.cache
+
+COPY ./www.conf /usr/local/etc/php-fpm.d/
+COPY ./php.ini /usr/local/etc/php/
+
+USER apache:opsworks

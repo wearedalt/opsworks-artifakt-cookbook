@@ -1,0 +1,7 @@
+version: "3"
+services:
+  redis:
+    image: redis:<%= node['redis']['version'] %>
+    container_name: redis
+    ports:
+      - 6379:6379

@@ -1,0 +1,3 @@
+#!/bin/sh
+arguments="$@"
+sudo docker exec php bash -c "cd $(echo $PWD) && n98-magerun $arguments"

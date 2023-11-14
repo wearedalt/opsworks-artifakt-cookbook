@@ -1,0 +1,5 @@
+name        "artifakt_app_phpapp"
+description "Artifakt PhpApp Application Recipes"
+maintainer  "Artifakt"
+license     "Apache 2.0"
+version     "1.0.0"

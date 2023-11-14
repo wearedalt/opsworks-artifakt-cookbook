@@ -1,0 +1,10 @@
+<VirtualHost *:80>
+        # However, you must set it for any further virtual host explicitly.
+        ServerName example.com
+        ServerAlias www.example.com
+        ServerAdmin webmaster@example.com
+        DocumentRoot /var/www/html/example.com
+
+        ErrorLog ${APACHE_LOG_DIR}/error.log
+        CustomLog ${APACHE_LOG_DIR}/access.log combined
+</VirtualHost>

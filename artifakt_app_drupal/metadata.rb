@@ -1,0 +1,5 @@
+name        "artifakt_app_drupal"
+description "Artifakt Drupal Application Recipes"
+maintainer  "Artifakt"
+license     "Apache 2.0"
+version     "1.0.0"

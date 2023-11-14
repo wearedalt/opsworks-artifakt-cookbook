@@ -1,0 +1,5 @@
+CREATE DATABASE IF NOT EXISTS <%= @dbname%> CHARACTER SET <%= @mysql_charset %> COLLATE <%= @mysql_collation %>;
+USE <%= @dbname%>;
+GRANT ALL PRIVILEGES ON <%= @dbname%>.* TO '<%= @dbuser%>'@'127.0.0.1' IDENTIFIED BY '<%= @dbpassword%>';
+GRANT ALL PRIVILEGES ON <%= @dbname%>.* TO '<%= @dbuser%>'@'localhost' IDENTIFIED BY '<%= @dbpassword%>';
+FLUSH PRIVILEGES;

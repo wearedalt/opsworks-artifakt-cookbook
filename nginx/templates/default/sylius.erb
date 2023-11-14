@@ -1,0 +1,36 @@
+server {
+    server_name <%= node[:url][:elb].downcase %>;
+    root    <%= node[:deploy][:sylius][:absolute_code_root] %>/public;
+
+    error_log /var/log/nginx/error.log;
+    access_log /var/log/nginx/access.log;
+
+    # Don't send the nginx version number in error pages and Server header
+    server_tokens off;
+
+    location / {
+        # try to serve file directly, fallback to index.php
+        try_files $uri /index.php$is_args$args;
+    }
+
+    # php-fpm configuration
+    location ~ ^/index\.php(/|$) {
+        fastcgi_pass 127.0.0.1:9000;
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        include fastcgi_params;
+
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        # Environment variable(s) defined by Artifakt
+        fastcgi_param HTTPS on;
+        internal;
+    }
+
+    # return 404 for all other php files not matching the front controller
+    # this prevents access to other php files you don't want to be accessible.
+    location ~ \.php$ {
+        return 404;
+    }
+
+    # Misc settings
+    sendfile off;
+}

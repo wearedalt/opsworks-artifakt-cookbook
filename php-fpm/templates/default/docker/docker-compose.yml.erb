@@ -1,0 +1,11 @@
+version: "3"
+services:
+  php:
+    container_name: php
+    build: .
+    restart: always
+    network_mode: host
+    volumes:
+      - /var/log/php-fpm:/var/log/php-fpm:cached
+      - /mnt/shared:/mnt/shared:cached
+      - /srv/www:/srv/www:cached

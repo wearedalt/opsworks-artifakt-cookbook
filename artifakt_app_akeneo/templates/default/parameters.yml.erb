@@ -1,0 +1,21 @@
+parameters:
+    database_host: <%= @dbhost%>
+    database_port: 3306
+    database_name: <%= @dbname%>
+    database_user: <%= @dbuser%>
+    database_password: <%= @dbpassword%>
+    <% if @smtphost %>
+    mailer_transport: smtp
+    <% else %>
+    mailer_transport: sendmail
+    <% end %>
+    mailer_host: <%= @smtphost%>
+    mailer_user: <%= @smtplogin%>
+    mailer_password: <%= @smtppassword%>
+    secret: <%= @appsecret%>
+    database_driver: pdo_mysql
+    locale: en
+    product_index_name: akeneo_pim_product
+    product_model_index_name: akeneo_pim_product_model
+    product_and_product_model_index_name: akeneo_pim_product_and_product_model
+    index_hosts: 'localhost: 9200'

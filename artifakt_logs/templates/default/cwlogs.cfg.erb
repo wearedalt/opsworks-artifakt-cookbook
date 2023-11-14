@@ -1,0 +1,110 @@
+[general]
+# Path to the AWSLogs agent's state file. Agent uses this file to maintain
+# client side state across its executions.
+state_file = /var/awslogs/state/agent-state
+
+# -- Jobs logs
+
+[jobs]
+log_group_name = <%= @logGroupName %>
+file = /var/lib/aws/opsworks/chef/*.log
+log_stream_name = <%= @instanceId %>
+
+
+# -- System logs
+
+[opsworks]
+datetime_format = %Y-%m-%d %H:%M:%S
+log_group_name = <%= @logGroupName %>-system
+file = /var/log/aws/opsworks/opsworks-agent.log
+log_stream_name = /var/log/aws/opsworks/opsworks-agent.log
+
+[mail]
+datetime_format = %b %d %H:%M:%S
+log_group_name = <%= @logGroupName %>-system
+file = /var/log/mailog
+log_stream_name = /var/log/mailog
+
+[messages]
+datetime_format = %b %d %H:%M:%S
+log_group_name = <%= @logGroupName %>-system
+file = /var/log/messages
+log_stream_name = /var/log/messages
+
+[syslog]
+datetime_format = %b %d %H:%M:%S
+log_group_name = <%= @logGroupName %>-system
+file = /var/log/syslog
+log_stream_name = /var/log/syslog
+
+[auth_log]
+datetime_format = %b %d %H:%M:%S
+log_group_name = <%= @logGroupName %>-system
+file = /var/log/auth.log
+log_stream_name = /var/log/auth.log
+
+
+# -- Web server logs
+
+<% if node[:app][:web_engine] == 'nginx' %>
+
+[nginx_error]
+datetime_format = %Y/%m/%d %H:%M:%S
+log_group_name = <%= @logGroupName %>-web_server
+file = /var/log/nginx/error.log
+log_stream_name = error
+
+[nginx_access]
+datetime_format = [%d/%b/%Y:%H:%M:%S %z]
+log_group_name = <%= @logGroupName %>-web_server
+file = /var/log/nginx/access.log
+log_stream_name = access
+
+<% else %>
+
+[apache_error]
+datetime_format = %a %b %d %H:%M:%S
+log_group_name = <%= @logGroupName %>-web_server
+file = /var/log/httpd/error.log
+log_stream_name = error
+
+[apache_access]
+datetime_format = [%d/%b/%Y:%H:%M:%S %z]
+log_group_name = <%= @logGroupName %>-web_server
+file = /var/log/httpd/<%= node[:app][:type].gsub '2', '' %>-access.log
+log_stream_name = access
+
+<% end %>
+
+# -- Database logs
+
+[mysql_slow_query]
+# datetime_format = %H:%M:%S
+log_group_name = <%= @logGroupName %>-database
+file = <%= node[:mysql][:tunable][:slow_query_log] %>
+log_stream_name = slow-query
+
+[mysql_error_log]
+# datetime_format = %H:%M:%S
+log_group_name = <%= @logGroupName %>-database
+file = /var/log/mysql/mysql-error.log
+log_stream_name = error
+
+
+# -- Application
+
+# Common to all applications
+[cron]
+datetime_format = %b %d %H:%M:%S
+log_group_name = <%= @logGroupName %>-application
+file = /var/log/cron
+log_stream_name = /var/log/cron
+
+# Load specific files to stream (it related to app type, user can override this value for stream his own files)
+<% @filesToStream.each_with_index do |path, index| %>
+[<%= node[:app][:type] %>-logs-<%= index %>]
+log_group_name = <%= @logGroupName %>-application
+file = <%= node[:deploy][node[:app_name]][:absolute_code_root] %>/<%= path %>
+log_stream_name = <%= path %>
+
+<% end %>

@@ -1,0 +1,23 @@
+version: '3'
+services:
+  varnish:
+    image: varnish:<%= node[:varnish][:version_long] %>
+    container_name: varnish
+    restart: always
+    network_mode: host
+    volumes:
+      - ./conf/default.vcl:/etc/varnish/default.vcl:cached
+      - ./conf/backends.vcl:/etc/varnish/backends.vcl:cached
+      - ./conf/vcl_init.vcl:/etc/varnish/vcl_init.vcl:cached
+      - ./conf/acl_purge.vcl:/etc/varnish/acl_purge.vcl:cached
+      - ./conf/custom_backends.vcl:/etc/varnish/custom_backends.vcl:cached
+      - ./conf/custom_start_rules.vcl:/etc/varnish/custom_start_rules.vcl:cached
+      - ./conf/custom_vcl_recv.vcl:/etc/varnish/custom_vcl_recv.vcl:cached
+      - ./conf/custom_vcl_hash.vcl:/etc/varnish/custom_vcl_hash.vcl:cached
+      - ./conf/custom_process_graphql_headers.vcl:/etc/varnish/custom_process_graphql_headers.vcl:cached
+      - ./conf/custom_vcl_backend_response.vcl:/etc/varnish/custom_vcl_backend_response.vcl:cached
+      - ./conf/custom_vcl_deliver.vcl:/etc/varnish/custom_vcl_deliver.vcl:cached
+      - ./conf/custom_vcl_hit.vcl:/etc/varnish/custom_vcl_hit.vcl:cached
+      - ./conf/custom_end_rules.vcl:/etc/varnish/custom_end_rules.vcl:cached
+    environment:
+      - VARNISH_SIZE=<%= node[:varnish][:storage_size] %>

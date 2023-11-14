@@ -1,0 +1,5 @@
+name        "artifakt_supervisor"
+description "Artifakt supervisor Recipes"
+maintainer  "Artifakt"
+license     "Apache 2.0"
+version     "1.0.0"
